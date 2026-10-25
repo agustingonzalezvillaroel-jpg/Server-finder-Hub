@@ -1,115 +1,383 @@
-
--- SERVER FINDER HUB - INTEGRACION VISUAL
--- Boton: 107486661308693
--- Fondo: 115849690020203
+-- Scripts Hub | Server Finder
+-- Interfaz visual personalizada:
+-- Boton flotante con imagen 1, arrastrable en movil/PC.
+-- Panel con imagen 2 y controles del buscador.
+-- Nota: la busqueda usa la API publica de servidores de Roblox.
 
 local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
-local guiParent = (gethui and gethui())
-    or player:WaitForChild("PlayerGui")
+local PLACE_ID = 107778070777162
 
--- Limpiar interfaz anterior
-local old = guiParent:FindFirstChild("SFCustomControls")
-if old then
-    old:Destroy()
-end
-
--- Cargar el buscador original
-task.spawn(function()
-    local ok, err = pcall(function()
-        loadstring(game:HttpGet(
-            "https://raw.githubusercontent.com/agustingonzalezvillaroel-jpg/Server-finder/main/Server%20finder"
-        ))()
-    end)
-
-    if not ok then
-        warn("Error cargando Server Finder:", err)
-    end
-end)
-
--- Esperar la interfaz original
-local originalGui
-local main
-
-for i = 1, 100 do
-    originalGui = player.PlayerGui:FindFirstChild("ServerFinder")
-    if originalGui then
-        main = originalGui:FindFirstChild("Main")
-        if main then break end
-    end
-    task.wait(0.1)
-end
-
-if not main then
-    warn("No se encontro el panel original de Server Finder.")
-    return
-end
-
--- Ocultar el boton de restaurar original
-local restore = originalGui:FindFirstChild("TextButton")
-if restore and restore.Name == "restore" then
-    restore.Visible = false
-end
-
--- Aplicar imagen de fondo al panel original
-local bg = Instance.new("ImageLabel")
-bg.Name = "CustomPanelBackground"
-bg.Size = UDim2.fromScale(1, 1)
-bg.Position = UDim2.fromScale(0, 0)
-bg.BackgroundTransparency = 1
-bg.Image = "rbxassetid://115849690020203"
-bg.ScaleType = Enum.ScaleType.Crop
-bg.ZIndex = 0
-bg.Parent = main
-
--- Mantener controles encima del fondo
-for _, obj in ipairs(main:GetDescendants()) do
-    if obj:IsA("GuiObject") and obj ~= bg then
-        obj.ZIndex = math.max(obj.ZIndex, 1)
-    end
-end
-
--- Crear interfaz del boton
 local gui = Instance.new("ScreenGui")
-gui.Name = "SFCustomControls"
+gui.Name = "ServerFinder"
 gui.ResetOnSpawn = false
-gui.DisplayOrder = 1000
-gui.Parent = guiParent
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = player:WaitForChild("PlayerGui")
 
-local button = Instance.new("ImageButton")
-button.Name = "OpenButton"
-button.Size = UDim2.fromOffset(76, 76)
-button.Position = UDim2.new(0, 22, 0.4, 0)
-button.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-button.Image = "rbxassetid://107486661308693"
-button.ScaleType = Enum.ScaleType.Crop
-button.Active = true
-button.Parent = gui
+-- Panel principal
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.Size = UDim2.new(0, 360, 0, 390)
+main.Position = UDim2.new(0.5, -180, 0.5, -195)
+main.BackgroundColor3 = Color3.fromRGB(20, 18, 32)
+main.BorderSizePixel = 0
+main.ClipsDescendants = true
+main.Visible = true
+main.Parent = gui
 
-Instance.new("UICorner", button).CornerRadius = UDim.new(1, 0)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
 
 local stroke = Instance.new("UIStroke")
 stroke.Color = Color3.fromRGB(0, 190, 255)
 stroke.Thickness = 2
-stroke.Parent = button
+stroke.Parent = main
 
--- Arrastrar con el dedo o el mouse
+-- Imagen de fondo del panel
+local panelImage = Instance.new("ImageLabel")
+panelImage.Name = "PanelBackground"
+panelImage.Size = UDim2.fromScale(1, 1)
+panelImage.Position = UDim2.fromScale(0, 0)
+panelImage.BackgroundTransparency = 1
+panelImage.Image = "rbxassetid://115849690020203"
+panelImage.ScaleType = Enum.ScaleType.Crop
+panelImage.ZIndex = 0
+panelImage.Parent = main
+
+-- Capa oscura
+local overlay = Instance.new("Frame")
+overlay.Name = "PanelOverlay"
+overlay.Size = UDim2.fromScale(1, 1)
+overlay.Position = UDim2.fromScale(0, 0)
+overlay.BackgroundColor3 = Color3.fromRGB(12, 10, 20)
+overlay.BackgroundTransparency = 0.32
+overlay.BorderSizePixel = 0
+overlay.ZIndex = 0
+overlay.Parent = main
+
+-- Animacion reutilizable
+local function tween(obj, info, props)
+    local anim = TweenService:Create(obj, info, props)
+    anim:Play()
+    return anim
+end
+
+local function styleButton(button, normal, hover)
+    button.AutoButtonColor = false
+    button.BackgroundColor3 = normal
+
+    button.MouseEnter:Connect(function()
+        tween(button, TweenInfo.new(0.18), {
+            BackgroundColor3 = hover
+        })
+    end)
+
+    button.MouseLeave:Connect(function()
+        tween(button, TweenInfo.new(0.18), {
+            BackgroundColor3 = normal
+        })
+    end)
+end
+
+-- Titulo
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(1, -65, 0, 42)
+title.Position = UDim2.new(0, 12, 0, 5)
+title.BackgroundTransparency = 1
+title.Text = "SERVER FINDER"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.ZIndex = 1
+title.Parent = main
+
+-- Boton minimizar
+local minimize = Instance.new("TextButton")
+minimize.Name = "Minimize"
+minimize.Size = UDim2.new(0, 34, 0, 30)
+minimize.Position = UDim2.new(1, -44, 0, 10)
+minimize.Text = "—"
+minimize.TextColor3 = Color3.new(1, 1, 1)
+minimize.Font = Enum.Font.GothamBold
+minimize.TextSize = 19
+minimize.BorderSizePixel = 0
+minimize.ZIndex = 2
+minimize.Parent = main
+
+Instance.new("UICorner", minimize).CornerRadius = UDim.new(0, 8)
+
+styleButton(
+    minimize,
+    Color3.fromRGB(25, 115, 155),
+    Color3.fromRGB(0, 165, 220)
+)
+
+-- Boton flotante
+local restore = Instance.new("ImageButton")
+restore.Name = "RestoreButton"
+restore.Size = UDim2.fromOffset(76, 76)
+restore.Position = UDim2.new(0, 18, 0.5, -38)
+restore.Image = "rbxassetid://107486661308693"
+restore.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+restore.ScaleType = Enum.ScaleType.Crop
+restore.BorderSizePixel = 0
+restore.Visible = false
+restore.Active = true
+restore.ZIndex = 5
+restore.Parent = gui
+
+Instance.new("UICorner", restore).CornerRadius = UDim.new(1, 0)
+
+local restoreStroke = Instance.new("UIStroke")
+restoreStroke.Color = Color3.fromRGB(0, 190, 255)
+restoreStroke.Thickness = 2
+restoreStroke.Parent = restore
+
+-- Boton buscar servidores
+local searchBtn = Instance.new("TextButton")
+searchBtn.Name = "SearchButton"
+searchBtn.Size = UDim2.new(1, -24, 0, 38)
+searchBtn.Position = UDim2.new(0, 12, 0, 52)
+searchBtn.Text = "⌕  BUSCAR SERVIDORES"
+searchBtn.TextColor3 = Color3.new(1, 1, 1)
+searchBtn.Font = Enum.Font.GothamBold
+searchBtn.TextSize = 14
+searchBtn.BorderSizePixel = 0
+searchBtn.ZIndex = 1
+searchBtn.Parent = main
+
+Instance.new("UICorner", searchBtn).CornerRadius = UDim.new(0, 8)
+
+styleButton(
+    searchBtn,
+    Color3.fromRGB(0, 115, 165),
+    Color3.fromRGB(0, 165, 220)
+)
+
+-- Estado
+local status = Instance.new("TextLabel")
+status.Name = "Status"
+status.Size = UDim2.new(1, -24, 0, 30)
+status.Position = UDim2.new(0, 12, 0, 94)
+status.BackgroundTransparency = 1
+status.Text = "Pulsa buscar para cargar servidores"
+status.TextColor3 = Color3.fromRGB(255, 255, 255)
+status.TextSize = 12
+status.Font = Enum.Font.Gotham
+status.TextWrapped = true
+status.ZIndex = 1
+status.Parent = main
+
+-- Lista de servidores
+local list = Instance.new("ScrollingFrame")
+list.Name = "ServerList"
+list.Size = UDim2.new(1, -24, 0, 248)
+list.Position = UDim2.new(0, 12, 0, 132)
+list.BackgroundColor3 = Color3.fromRGB(28, 25, 43)
+list.BackgroundTransparency = 0.15
+list.BorderSizePixel = 0
+list.ScrollBarThickness = 4
+list.ScrollBarImageColor3 = Color3.fromRGB(0, 190, 255)
+list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+list.CanvasSize = UDim2.new()
+list.ZIndex = 1
+list.Parent = main
+
+Instance.new("UICorner", list).CornerRadius = UDim.new(0, 9)
+
+local listStroke = Instance.new("UIStroke")
+listStroke.Color = Color3.fromRGB(0, 120, 170)
+listStroke.Thickness = 1
+listStroke.Parent = list
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 6)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = list
+
+local listPadding = Instance.new("UIPadding")
+listPadding.PaddingTop = UDim.new(0, 6)
+listPadding.PaddingLeft = UDim.new(0, 5)
+listPadding.PaddingRight = UDim.new(0, 5)
+listPadding.Parent = list
+
+-- Limpiar lista
+local function clearList()
+    for _, obj in ipairs(list:GetChildren()) do
+        if obj:IsA("Frame") then
+            obj:Destroy()
+        end
+    end
+end
+
+-- Agregar servidor a la lista
+local function addServer(server, index)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, -8, 0, 58)
+    row.BackgroundColor3 = Color3.fromRGB(30, 45, 58)
+    row.BackgroundTransparency = 0.08
+    row.LayoutOrder = index
+    row.BorderSizePixel = 0
+    row.ZIndex = 2
+    row.Parent = list
+
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+
+    local rowStroke = Instance.new("UIStroke")
+    rowStroke.Color = Color3.fromRGB(0, 130, 180)
+    rowStroke.Thickness = 1
+    rowStroke.Parent = row
+
+    local info = Instance.new("TextLabel")
+    info.Size = UDim2.new(0.58, 0, 1, 0)
+    info.Position = UDim2.new(0, 8, 0, 0)
+    info.BackgroundTransparency = 1
+    info.Text = string.format(
+        "%d jugadores\nMáximo: %d",
+        server.playing or 0,
+        server.maxPlayers or 0
+    )
+    info.TextColor3 = Color3.new(1, 1, 1)
+    info.TextSize = 12
+    info.Font = Enum.Font.Gotham
+    info.TextXAlignment = Enum.TextXAlignment.Left
+    info.ZIndex = 3
+    info.Parent = row
+
+    local join = Instance.new("TextButton")
+    join.Size = UDim2.new(0, 92, 0, 32)
+    join.Position = UDim2.new(1, -100, 0.5, -16)
+    join.Text = "UNIRSE"
+    join.TextColor3 = Color3.new(1, 1, 1)
+    join.BackgroundColor3 = Color3.fromRGB(0, 125, 180)
+    join.Font = Enum.Font.GothamBold
+    join.TextSize = 12
+    join.BorderSizePixel = 0
+    join.ZIndex = 3
+    join.Parent = row
+
+    Instance.new("UICorner", join).CornerRadius = UDim.new(0, 7)
+
+    styleButton(
+        join,
+        Color3.fromRGB(0, 125, 180),
+        Color3.fromRGB(0, 175, 225)
+    )
+
+    join.Activated:Connect(function()
+        if server.id then
+            status.Text = "Intentando entrar al servidor..."
+
+            local ok, err = pcall(function()
+                TeleportService:TeleportToPlaceInstance(
+                    PLACE_ID,
+                    server.id,
+                    player
+                )
+            end)
+
+            if not ok then
+                status.Text = "No se pudo iniciar: " .. tostring(err)
+            end
+        end
+    end)
+end
+
+-- Buscador mediante API publica de Roblox
+local function fetchServers()
+    clearList()
+    status.Text = "Consultando servidores..."
+
+    -- Los ejecutores externos pueden exponer funciones HTTP.
+    local req
+
+    if syn and syn.request then
+        req = syn.request
+    elseif http and http.request then
+        req = http.request
+    elseif request then
+        req = request
+    end
+
+    if not req then
+        status.Text =
+            "No hay una funcion HTTP compatible en este entorno."
+        return
+    end
+
+    local url = "https://games.roblox.com/v1/games/"
+        .. PLACE_ID
+        .. "/servers/Public?sortOrder=Asc&limit=100"
+
+    local ok, response = pcall(function()
+        return req({
+            Url = url,
+            Method = "GET"
+        })
+    end)
+
+    if not ok or not response
+        or (response.StatusCode and response.StatusCode ~= 200)
+        or not response.Body then
+
+        status.Text = "Error consultando la API publica de Roblox."
+        return
+    end
+
+    local decodedOk, data = pcall(function()
+        return HttpService:JSONDecode(response.Body)
+    end)
+
+    if not decodedOk or type(data.data) ~= "table" then
+        status.Text = "Respuesta no valida de la API."
+        return
+    end
+
+    table.sort(data.data, function(a, b)
+        return (a.playing or 0) < (b.playing or 0)
+    end)
+
+    local count = 0
+
+    for _, server in ipairs(data.data) do
+        if (server.playing or 0) < (server.maxPlayers or 0) then
+            count += 1
+            addServer(server, count)
+        end
+    end
+
+    status.Text = tostring(count) .. " servidores disponibles."
+end
+
+searchBtn.Activated:Connect(fetchServers)
+
+-- Minimizar el panel
+minimize.Activated:Connect(function()
+    main.Visible = false
+    restore.Visible = true
+end)
+
+-- Boton arrastrable: mouse y pantalla tactil
 local dragging = false
 local moved = false
-local startPos
-local startButtonPos
+local dragStart
+local buttonStart
 local activeTouch
 
-button.InputBegan:Connect(function(input)
+restore.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch
         or input.UserInputType == Enum.UserInputType.MouseButton1 then
 
         dragging = true
         moved = false
-        startPos = input.Position
-        startButtonPos = button.Position
+        dragStart = input.Position
+        buttonStart = restore.Position
 
         if input.UserInputType == Enum.UserInputType.Touch then
             activeTouch = input
@@ -118,24 +386,47 @@ button.InputBegan:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if not dragging then return end
+    if not dragging then
+        return
+    end
 
-    local isMouse = input.UserInputType ==
-        Enum.UserInputType.MouseMovement
-    local isTouch = input == activeTouch
+    local isMouseMove =
+        input.UserInputType == Enum.UserInputType.MouseMovement
 
-    if isMouse or isTouch then
-        local delta = input.Position - startPos
+    local isActiveTouch = input == activeTouch
+
+    if isMouseMove or isActiveTouch then
+        local delta = input.Position - dragStart
 
         if math.abs(delta.X) > 6 or math.abs(delta.Y) > 6 then
             moved = true
         end
 
-        button.Position = UDim2.new(
-            startButtonPos.X.Scale,
-            startButtonPos.X.Offset + delta.X,
-            startButtonPos.Y.Scale,
-            startButtonPos.Y.Offset + delta.Y
+        local camera = workspace.CurrentCamera
+        local viewport = camera and camera.ViewportSize
+
+        local x = buttonStart.X.Offset + delta.X
+        local y = buttonStart.Y.Offset + delta.Y
+
+        if viewport then
+            x = math.clamp(
+                x,
+                0,
+                viewport.X - restore.AbsoluteSize.X
+            )
+
+            y = math.clamp(
+                y,
+                0,
+                viewport.Y - restore.AbsoluteSize.Y
+            )
+        end
+
+        restore.Position = UDim2.new(
+            buttonStart.X.Scale,
+            x,
+            buttonStart.Y.Scale,
+            y
         )
     end
 end)
@@ -143,17 +434,19 @@ end)
 UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch
         or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
         dragging = false
         activeTouch = nil
     end
 end)
 
--- Abrir y cerrar el panel original
-button.Activated:Connect(function()
+-- Restaurar el panel al tocar el boton flotante
+restore.Activated:Connect(function()
     if moved then
         moved = false
         return
     end
 
-    main.Visible = not main.Visible
+    restore.Visible = false
+    main.Visible = true
 end)
