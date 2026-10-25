@@ -1,5 +1,4 @@
 -- Scripts Hub | Server Finder
--- Interfaz visual personalizada:
 -- Boton flotante con imagen 1, arrastrable en movil/PC.
 -- Panel con imagen 2 y controles del buscador.
 -- Nota: la busqueda usa la API publica de servidores de Roblox.
@@ -48,7 +47,7 @@ panelImage.ScaleType = Enum.ScaleType.Crop
 panelImage.ZIndex = 0
 panelImage.Parent = main
 
--- Capa oscura
+-- Capa oscura para mantener legibles los controles
 local overlay = Instance.new("Frame")
 overlay.Name = "PanelOverlay"
 overlay.Size = UDim2.fromScale(1, 1)
@@ -118,7 +117,7 @@ styleButton(
     Color3.fromRGB(0, 165, 220)
 )
 
--- Boton flotante
+-- Boton flotante con la primera imagen
 local restore = Instance.new("ImageButton")
 restore.Name = "RestoreButton"
 restore.Size = UDim2.fromOffset(76, 76)
@@ -160,7 +159,7 @@ styleButton(
     Color3.fromRGB(0, 165, 220)
 )
 
--- Estado
+-- Estado del buscador
 local status = Instance.new("TextLabel")
 status.Name = "Status"
 status.Size = UDim2.new(1, -24, 0, 30)
@@ -207,7 +206,6 @@ listPadding.PaddingLeft = UDim.new(0, 5)
 listPadding.PaddingRight = UDim.new(0, 5)
 listPadding.Parent = list
 
--- Limpiar lista
 local function clearList()
     for _, obj in ipairs(list:GetChildren()) do
         if obj:IsA("Frame") then
@@ -216,7 +214,7 @@ local function clearList()
     end
 end
 
--- Agregar servidor a la lista
+-- Crear una fila de servidor
 local function addServer(server, index)
     local row = Instance.new("Frame")
     row.Size = UDim2.new(1, -8, 0, 58)
@@ -289,12 +287,11 @@ local function addServer(server, index)
     end)
 end
 
--- Buscador mediante API publica de Roblox
+-- Buscar servidores mediante la API publica de Roblox
 local function fetchServers()
     clearList()
     status.Text = "Consultando servidores..."
 
-    -- Los ejecutores externos pueden exponer funciones HTTP.
     local req
 
     if syn and syn.request then
@@ -306,8 +303,7 @@ local function fetchServers()
     end
 
     if not req then
-        status.Text =
-            "No hay una funcion HTTP compatible en este entorno."
+        status.Text = "No hay una funcion HTTP compatible en este entorno."
         return
     end
 
@@ -325,7 +321,6 @@ local function fetchServers()
     if not ok or not response
         or (response.StatusCode and response.StatusCode ~= 200)
         or not response.Body then
-
         status.Text = "Error consultando la API publica de Roblox."
         return
     end
@@ -357,13 +352,13 @@ end
 
 searchBtn.Activated:Connect(fetchServers)
 
--- Minimizar el panel
+-- Minimizar: oculta el panel y muestra el boton flotante
 minimize.Activated:Connect(function()
     main.Visible = false
     restore.Visible = true
 end)
 
--- Boton arrastrable: mouse y pantalla tactil
+-- Boton flotante arrastrable con mouse y pantalla tactil
 local dragging = false
 local moved = false
 local dragStart
@@ -440,7 +435,7 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- Restaurar el panel al tocar el boton flotante
+-- Abrir el panel al pulsar el boton flotante
 restore.Activated:Connect(function()
     if moved then
         moved = false
